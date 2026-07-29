@@ -1,10 +1,6 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// 게임 플레이 중 Fuel, Speed, Distance, Time 정보를 실시간으로 표시하는 HUD 전용 컨트롤러.
-/// 게임플레이 로직(PlayerController, GravityBody, OrbitPredictor)은 참조만 하며 수정하지 않는다.
-/// </summary>
 public class HUDController : MonoBehaviour
 {
     [Header("Gameplay References")]

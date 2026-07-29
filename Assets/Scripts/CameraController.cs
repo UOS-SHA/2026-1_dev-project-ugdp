@@ -10,7 +10,7 @@ public class CameraController : MonoBehaviour
 
     private float orbitRadius = 20f;
 
-    private bool isOrbitCameraActive = false;
+    private bool isOrbitCameraActive = true;
 
     // Ãß°¡
     private float yaw;

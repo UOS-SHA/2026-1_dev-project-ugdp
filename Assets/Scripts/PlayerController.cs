@@ -1,3 +1,4 @@
+using Game.Flow;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -46,6 +47,8 @@ public class PlayerController : MonoBehaviour
     public float FuelPercent => maxFuel > 0 ? Mathf.Clamp01(_currentFuel / maxFuel) : 0f;
     public bool HasFuel => _currentFuel > 0.01f;
     public bool IsThrusting => _thrustInput && HasFuel;
+
+    private bool _inputLocked;
 
     private void Awake()
     {
@@ -106,6 +109,8 @@ public class PlayerController : MonoBehaviour
 
     private void Update()
     {
+        if (_inputLocked)
+            return;
         _pitchInput = _pitchAction.ReadValue<float>();
         _yawInput = _yawAction.ReadValue<float>();
         _rollInput = _rollAction.ReadValue<float>();
@@ -161,5 +166,41 @@ public class PlayerController : MonoBehaviour
         _gravityBody.AddVelocity(thrustVelocity);
 
         _orbitNeedsRebuild = true;
+    }
+
+    private void OnEnable()
+    {
+        GameFlowController.Instance.OnResultFinalized += HandleResultFinalized;
+        Debug.Log($"[PlayerController] OnEnable called at frame {Time.frameCount}");
+    }
+
+
+
+    private void OnDisable()
+    {
+        if (GameFlowController.Instance != null)
+            GameFlowController.Instance.OnResultFinalized -= HandleResultFinalized;
+    }
+
+    private void HandleResultFinalized(GameResult result)
+    {
+        _inputLocked = true;
+        // 필요 시 물리 시뮬레이션도 정지: rb.simulated = false;
+    }
+
+    private void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (!GameFlowController.Instance.IsGameplayActive)
+            return;
+
+        // 기존 실패 조건 판정 로직
+    }
+
+    private void OnTriggerEnter2D(Collider2D other)
+    {
+        if (!GameFlowController.Instance.IsGameplayActive)
+            return;
+
+        // 기존 로직
     }
 }

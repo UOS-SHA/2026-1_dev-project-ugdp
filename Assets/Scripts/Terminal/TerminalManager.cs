@@ -9,6 +9,8 @@ using UnityEngine.UI;
 /// Parses text commands typed into the terminal InputField and executes
 /// the corresponding action (loading a stage, printing help, clearing output).
 /// This component owns only Gameplay/UI logic and never touches the Physics Layer.
+/// Stage progress (current stage, unlocked stage) is never stored here — it is
+/// always read from and mutated through GameProgress.
 /// </summary>
 public class TerminalManager : MonoBehaviour
 {
@@ -24,10 +26,6 @@ public class TerminalManager : MonoBehaviour
     // new content to auto-scroll further down. Prevents forcing the view
     // back down when the user has manually scrolled up to read past output.
     private const float AutoScrollThreshold = 0.05f;
-
-    // Placeholder for future GameProgress integration.
-    // Currently fixed; will be set by GameProgress once that system exists.
-    private string currentStage = "Stage01";
 
     private readonly Dictionary<string, Action<string[]>> commandHandlers =
         new Dictionary<string, Action<string[]>>(StringComparer.OrdinalIgnoreCase);
@@ -66,6 +64,9 @@ public class TerminalManager : MonoBehaviour
     private void RegisterCommands()
     {
         commandHandlers["/start"] = HandleStart;
+        commandHandlers["/next"] = HandleNext;
+        commandHandlers["/prev"] = HandlePrev;
+        commandHandlers["/stage"] = HandleStage;
         commandHandlers["/help"] = HandleHelp;
         commandHandlers["/clear"] = HandleClear;
         commandHandlers["/exit"] = HandleExit;
@@ -124,19 +125,57 @@ public class TerminalManager : MonoBehaviour
     }
 
     private void HandleStart(string[] args)
-    { 
-        GameSessionTimer.ResetTimer();
+    {
         // NOTE: "/start stage02" is not supported yet — by design (YAGNI).
-        // currentStage is fixed for now and will be updated by GameProgress
-        // once stage-unlock tracking exists.
-        AppendLine($"Loading {currentStage}...");
-        LoadStage(currentStage);
+        // Which stage loads is entirely determined by GameProgress.CurrentStageIndex.
+        if (!GameProgress.CanLaunchCurrentStage())
+        {
+            AppendLine("Current stage is not unlocked.");
+            return;
+        }
+
+        GameSessionTimer.ResetTimer();
+        AppendLine($"Loading {GameProgress.CurrentSceneName}...");
+        LoadStage(GameProgress.CurrentSceneName);
+    }
+
+    private void HandleNext(string[] args)
+    {
+        if (GameProgress.CurrentStageIndex >= GameProgress.HighestUnlockedStage)
+        {
+            AppendLine("No further unlocked stages.");
+            return;
+        }
+
+        GameProgress.AdvanceStage();
+        AppendLine($"Moved to {GameProgress.CurrentSceneName}.");
+    }
+
+    private void HandlePrev(string[] args)
+    {
+        if (GameProgress.CurrentStageIndex <= 1)
+        {
+            AppendLine("Already at first stage.");
+            return;
+        }
+
+        GameProgress.RetreatStage();
+        AppendLine($"Moved to {GameProgress.CurrentSceneName}.");
+    }
+
+    private void HandleStage(string[] args)
+    {
+        AppendLine($"Current Stage : {GameProgress.CurrentSceneName}");
+        AppendLine($"Unlocked Stage : {GameProgress.HighestUnlockedStage}");
     }
 
     private void HandleHelp(string[] args)
     {
         AppendLine("Available Commands");
         AppendLine("/start");
+        AppendLine("/next");
+        AppendLine("/prev");
+        AppendLine("/stage");
         AppendLine("/help");
         AppendLine("/clear");
         AppendLine("/exit");
@@ -152,12 +191,12 @@ public class TerminalManager : MonoBehaviour
     private void HandleExit(string[] args)
     {
         AppendLine("Closing terminal...");
-            
-    #if UNITY_EDITOR
-            UnityEditor.EditorApplication.isPlaying = false;
-    #else
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
         Application.Quit();
-    #endif
+#endif
     }
 
     private void LoadStage(string sceneName)
@@ -172,7 +211,11 @@ public class TerminalManager : MonoBehaviour
         AppendLine(string.Empty);
         AppendLine("Available Commands");
         AppendLine("/start");
+        AppendLine("/next");
+        AppendLine("/prev");
+        AppendLine("/stage");
         AppendLine("/help");
+        AppendLine("/clear");
         AppendLine("/exit");
         AppendLine(HeaderDivider);
         //AppendLine(PromptSymbol);
